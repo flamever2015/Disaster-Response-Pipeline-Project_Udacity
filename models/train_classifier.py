@@ -1,10 +1,7 @@
 # import libraries
-# 补充了多目标分类
-# import libraries
 import nltk
 nltk.download(['punkt', 'wordnet', 'stopwords'])
-from nltk.corpus import stopwordsimport nltk
-nltk.download(['punkt', 'wordnet'])
+from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 import sqlalchemy
@@ -21,40 +18,31 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.multioutput import MultiOutputClassifier
 from sklearn.datasets import make_multilabel_classification
-# from sklearn.neighbors import KNeighborsClassifier
+
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.metrics import classification_report
 import sys
-import pickle
+import pickle 
 from sklearn.externals import joblib
+
+import random
+import pickle
+import warnings
 
 def load_data(database_filepath):
     # 用 sqlalchemy 构建数据库链接engine
-    #connect_info = 'sqlite:////data/DisasterResponse.db'
-    #engine = create_engine(connect_info)
-    # sql 命令
-    #sql_cmd = 'SELECT * FROM DisasterResponse'
-    #df = pd.read_sql(sql = sql_cmd, con = engine)
-
-    #conn = sqlite3.connect('data/DisasterResponse.db')
-
-    # get a cursor
-    #cur = conn.cursor()
-
-    # create the test table including project_id as a primary key
-    #df = pd.read_sql("SELECT * FROM DisasterResponse", con = conn)
-
-    #conn.commit()
-    #conn.close()
-
-    #不用 engine = create_engine('sqlite:////home/workspace/df_clean.db')
-    #不用 df = pd.read_sql("SELECT * FROM df_clean", engine)
-
-    df = pd.read_csv(database_filepath, low_memory = False)
+    # table name
+    table_name = 'DisasterResponse'
+    # load data from database
+    engine = create_engine('sqlite:///{}'.format(database_filepath))
+    df = pd.read_sql_table(table_name, engine)
+    
+    # df = pd.read_csv(database_filepath, low_memory = False)
     X = df.message
     Y = df.iloc[:, 4:]
     #Y = df.iloc[:, 4]
-    category_names = pd.DataFrame(Y).columns.values
+    #category_names = pd.DataFrame(Y).columns.value
+    category_names = pd.DataFrame(Y).columns
     return X, Y, category_names
 
 
@@ -62,12 +50,17 @@ def tokenize(text):
     tokens = word_tokenize(text)
     lemmatizer = WordNetLemmatizer()
 
+    # stopword list 
+    STOPWORDS = list(set(stopwords.words('english')))
+
     clean_tokens = []
     for tok in tokens:
-        clean_tok = lemmatizer.lemmatize(tok).lower().strip()
-        clean_tokens.append(clean_tok)
+        if (tok.lower() not in STOPWORDS):
+            # put words into base form
+            clean_tok = lemmatizer.lemmatize(tok).lower().strip()
+            clean_tok = re.sub(r"[^a-zA-Z0-9]", " ", clean_tok)
+            clean_tokens.append(clean_tok)
 
-    clean_tokens = [w for w in clean_tokens if w not in stopwords.words("english")]
     return clean_tokens
 
 
@@ -75,16 +68,16 @@ def build_model():
     pipeline = Pipeline([
         ('vect', CountVectorizer(tokenizer = tokenize)),
         ('tfidf', TfidfTransformer()),
-        ('clf', MultiOutputClassifier(RandomForestClassifier(n_estimators = 10), n_jobs = -1))])
-
+        ('clf', MultiOutputClassifier(RandomForestClassifier(), n_jobs = -1))])
+        #('clf', RandomForestClassifier())])
 
     parameters = {
-        #'features__text_pipeline__vect__ngram_range': ((1, 1), (1, 2)),
-        #'features__text_pipeline__vect__max_df': (0.5, 0.75, 1.0),
-        #'features__text_pipeline__vect__max_features': (None, 5000, 10000),
-        #'features__text_pipeline__tfidf__use_idf': (True, False),
-        #clf__n_estimators': [50, 100],
-        'clf__min_samples_split': [2, 3, 4]
+        'vect__ngram_range': ((1, 1), (1, 2)),
+        #'vect__max_df': (0.5, 0.75, 1.0),
+        #'vect__max_features': (None, 5000, 10000),
+        #'tfidf__use_idf': (True, False),
+        'clf__estimator__n_estimators': [20, 100],
+        'clf__estimator__min_samples_split': [2, 4]
 
     }
 
@@ -94,14 +87,17 @@ def build_model():
 
 
 def evaluate_model(model, X_test, Y_test, category_names):
-    Y_pred = model.predict(X_test)
-    #print(r'Y_pred.shape:',Y_pred.shape)
-
-    print(category_names, 'report:', classification_report(Y_test, Y_pred))
+    # get predictions 
+    y_preds = model.predict(X_test)
+    # print classification report
+    print(classification_report(y_preds, Y_test.values, target_names = category_names))
+    # print raw accuracy score 
+    print('Accuracy Score: {}'.format(np.mean(Y_test.values == y_preds)))
 
 
 def save_model(model, model_filepath):
-    joblib.dump(model, model_filepath)
+    # joblib.dump(model, model_filepath)
+    pickle.dump(model, open(model_filepath, 'wb'))
 
 
 def main():
@@ -111,13 +107,13 @@ def main():
         X, Y, category_names = load_data(database_filepath)
         #X, Y, category_names = load_data()
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
-
+        
         print('Building model...')
         model = build_model()
-
+        
         print('Training model...')
         model.fit(X_train, Y_train)
-
+        
         print('Evaluating model...')
         evaluate_model(model, X_test, Y_test, category_names)
 

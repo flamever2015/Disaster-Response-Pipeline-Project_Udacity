@@ -1,10 +1,9 @@
-
+# import libraries
 import sys
 import numpy as np
 import pandas as pd
 import sqlite3
 from sqlalchemy import create_engine
-
 
 def load_data(messages_filepath, categories_filepath):
     messages = pd.read_csv(messages_filepath)
@@ -50,9 +49,15 @@ def clean_data(df):
     return df 
 
 def save_data(df, database_filename):
-    #engine = create_engine('sqlite:///data/DisasterResponse.db')
-    #df.to_sql(database_filename, engine, index = False)
-    df.to_csv("data/DisasterResponse.csv",index = False)
+        
+    # table name
+    table_name = 'DisasterResponse'
+    # create engine 
+    engine = create_engine('sqlite:////home/workspace/{}'.format(database_filename))
+    # save dataframe to database, relace if already exists 
+    df.to_sql(table_name, engine, index=False, if_exists='replace')
+    
+
 def main():
     if len(sys.argv) == 4:
 
