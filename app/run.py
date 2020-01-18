@@ -2,14 +2,19 @@ import json
 import plotly
 import pandas as pd
 
-from nltk.stem import WordNetLemmatizer
-from nltk.tokenize import word_tokenize
-
 from flask import Flask
 from flask import render_template, request, jsonify
 from plotly.graph_objs import Bar
 from sklearn.externals import joblib
 from sqlalchemy import create_engine
+
+import nltk
+nltk.download(['punkt', 'wordnet', 'stopwords'])
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+from nltk.stem import WordNetLemmatizer
+from nltk.tokenize import word_tokenize
+
 #import plotly.graph_objs as go
 
 app = Flask(__name__)
@@ -17,21 +22,27 @@ app = Flask(__name__)
 def tokenize(text):
     tokens = word_tokenize(text)
     lemmatizer = WordNetLemmatizer()
+    # stopword list 
+    STOPWORDS = list(set(stopwords.words('english')))
 
     clean_tokens = []
     for tok in tokens:
-        clean_tok = lemmatizer.lemmatize(tok).lower().strip()
-        clean_tokens.append(clean_tok)
+        if (tok.lower() not in STOPWORDS):
+            # put words into base form
+            clean_tok = lemmatizer.lemmatize(tok).lower().strip()
+            clean_tok = re.sub(r"[^a-zA-Z0-9]", " ", clean_tok)
+            clean_tokens.append(clean_tok)
 
     return clean_tokens
 
 # load data
-#engine = create_engine('sqlite:///../data/YourDatabaseName.db')
-#df = pd.read_sql_table('YourTableName', engine)
-df = pd.read_csv('data/DisasterResponse.csv', low_memory = False)
+table_name = 'DisasterResponse'
+engine = create_engine('sqlite:///../data/DisasterResponse.db')
+df = pd.read_sql_table(table_name, engine)
 
 # load model
-model = joblib.load('models/classifier.pkl')
+# 务必设置路径
+model = joblib.load('../models/classifier.pkl')
 
 # index webpage displays cool visuals and receives user input text for model
 @app.route('/')
@@ -42,6 +53,10 @@ def index():
     # TODO: Below is an example - modify to extract data for your own visuals
     genre_counts = df.groupby('genre').count()['message']
     genre_names = list(genre_counts.index)
+
+    # Top 10  categories count
+    top_category_count = df.iloc[:,4:].sum().sort_values(ascending = False)[0:9]
+    top_category_names = list(top_category_count.index)
 
     # create visuals
     # TODO: Below is an example - modify to create your own visuals
@@ -61,6 +76,25 @@ def index():
                 },
                 'xaxis': {
                     'title': "Genre"
+                }
+            }
+        },
+
+        {
+            'data': [
+                Bar(
+                    x=top_category_names,
+                    y=top_category_count
+                )
+            ],
+
+            'layout': {
+                'title': 'Top 10 Categories',
+                'yaxis': {
+                    'title': "Count"
+                },
+                'xaxis': {
+                    'title': "Categories"
                 }
             }
         }
@@ -83,7 +117,7 @@ def go():
     # use model to predict classification for query
     classification_labels = model.predict([query])[0]
     classification_results = dict(zip(df.columns[4:], classification_labels))
-    #classification_results = dict(zip(df.columns[4], classification_labels))
+
     # This will render the go.html Please see that file.
     return render_template(
         'go.html',
