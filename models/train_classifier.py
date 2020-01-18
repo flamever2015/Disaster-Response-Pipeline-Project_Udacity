@@ -1,5 +1,9 @@
 # import libraries
+# 补充了多目标分类
+# import libraries
 import nltk
+nltk.download(['punkt', 'wordnet', 'stopwords'])
+from nltk.corpus import stopwordsimport nltk
 nltk.download(['punkt', 'wordnet'])
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
@@ -63,6 +67,7 @@ def tokenize(text):
         clean_tok = lemmatizer.lemmatize(tok).lower().strip()
         clean_tokens.append(clean_tok)
 
+    clean_tokens = [w for w in clean_tokens if w not in stopwords.words("english")]
     return clean_tokens
 
 
