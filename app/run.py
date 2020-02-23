@@ -1,13 +1,17 @@
 import json
 import plotly
+from plotly.graph_objs import Bar
+import os
 import pandas as pd
-
+import re
 from flask import Flask
 from flask import render_template, request, jsonify
-from plotly.graph_objs import Bar
-from sklearn.externals import joblib
-from sqlalchemy import create_engine
 
+from sklearn.externals import joblib
+
+import sqlalchemy
+from sqlalchemy import create_engine
+from flask_sqlalchemy import SQLAlchemy
 import nltk
 nltk.download(['punkt', 'wordnet', 'stopwords'])
 from nltk.corpus import stopwords
@@ -22,7 +26,7 @@ app = Flask(__name__)
 def tokenize(text):
     tokens = word_tokenize(text)
     lemmatizer = WordNetLemmatizer()
-    # stopword list 
+    # stopword list
     STOPWORDS = list(set(stopwords.words('english')))
 
     clean_tokens = []
@@ -36,13 +40,15 @@ def tokenize(text):
     return clean_tokens
 
 # load data
-table_name = 'DisasterResponse'
-engine = create_engine('sqlite:///../data/DisasterResponse.db')
-df = pd.read_sql_table(table_name, engine)
+# table_name = 'DisasterResponse'
+engine = create_engine('sqlite:///data/DisasterResponse.db')
+# engine = create_engine('sqlite:///../data/DisasterResponse.db')
+df = pd.read_sql_table('DisasterResponse', engine)
 
 # load model
 # 务必设置路径
-model = joblib.load('../models/classifier.pkl')
+model = joblib.load('models/classifier.pkl')
+# model = joblib.load('../models/classifier.pkl')
 
 # index webpage displays cool visuals and receives user input text for model
 @app.route('/')
@@ -50,7 +56,7 @@ model = joblib.load('../models/classifier.pkl')
 def index():
 
     # extract data needed for visuals
-    # TODO: Below is an example - modify to extract data for your own visuals
+
     genre_counts = df.groupby('genre').count()['message']
     genre_names = list(genre_counts.index)
 
@@ -59,7 +65,7 @@ def index():
     top_category_names = list(top_category_count.index)
 
     # create visuals
-    # TODO: Below is an example - modify to create your own visuals
+
     graphs = [
         {
             'data': [

@@ -6,13 +6,26 @@ import sqlite3
 from sqlalchemy import create_engine
 
 def load_data(messages_filepath, categories_filepath):
+    '''
+    输入：
+         messages_filepath：消息数据的文件路径
+         category_filepath：类别数据的文件路径
+    输出：
+         df：将消息和类别数据集合进行合并 并输出
+    '''
     messages = pd.read_csv(messages_filepath)
     categories = pd.read_csv(categories_filepath)
     df = messages.merge(categories, how = 'left',on = 'id')
     return df
 
 def clean_data(df):
-    
+
+    '''
+    输入：
+         df：消息和类别的合并数据集
+    输出：
+         df：清洗后的合并数据集
+    '''
     # categories_new = pd.concat([categories, categories['categories'].str.split(';', expand = True)], axis=1, names = row)
     # 分割 `categories`
     df_col_categories = df['categories'].str.split(';', expand = True)
@@ -27,7 +40,7 @@ def clean_data(df):
       return str(x)[:-2]
     row_del2 = [mapper(x) for x in row]
     category_colnames = row_del2
-    
+
     df_col_categories.columns = category_colnames
     # 转换类别值至数值 0 或 1
     for column in df_col_categories:
@@ -46,17 +59,24 @@ def clean_data(df):
     # drop duplicates
     df_all_drop_ID_duplicates = df_all.drop_duplicates('id')
     df = df_all_drop_ID_duplicates
-    return df 
+    return df
 
 def save_data(df, database_filename):
-        
+    '''
+     将df保存到sqlite db
+     输入：
+         df：清洗后的数据集
+         database_filename：数据库名称，例如 DisasterMessages.db
+     输出：
+         SQLite数据库
+     '''
     # table name
     table_name = 'DisasterResponse'
-    # create engine 
-    engine = create_engine('sqlite:////home/workspace/{}'.format(database_filename))
-    # save dataframe to database, relace if already exists 
+    # create engine
+    engine = create_engine('sqlite:///{}'.format(database_filename))
+    # save dataframe to database, relace if already exists
     df.to_sql(table_name, engine, index=False, if_exists='replace')
-    
+
 
 def main():
     if len(sys.argv) == 4:
