@@ -7,7 +7,8 @@ import re
 from flask import Flask
 from flask import render_template, request, jsonify
 
-from sklearn.externals import joblib
+# from sklearn.externals import joblib 由于有warning 所以不用该import
+import joblib
 
 import sqlalchemy
 from sqlalchemy import create_engine

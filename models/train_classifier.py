@@ -23,8 +23,8 @@ from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.metrics import classification_report
 import sys
 import pickle
-from sklearn.externals import joblib
-
+#from sklearn.externals import joblib
+import joblib
 import random
 import pickle
 import warnings
@@ -95,8 +95,10 @@ def build_model():
 
     pipeline = Pipeline([
         ('vect', CountVectorizer(tokenizer = tokenize)),
-        ('tfidf', TfidfTransformer()),
-        ('clf', MultiOutputClassifier(RandomForestClassifier()))])
+        ('tfidf', TfidfTransformer(use_idf = True)),
+        ('clf', MultiOutputClassifier(RandomForestClassifier(n_estimators = 10,
+                                                             min_samples_split = 10)))
+        ])
         #('clf', RandomForestClassifier())])
 
     parameters = {
@@ -104,12 +106,13 @@ def build_model():
         #'vect__max_df': (0.5, 0.75, 1.0),
         #'vect__max_features': (None, 5000, 10000),
         #'tfidf__use_idf': (True, False),
-        #'clf__estimator__n_estimators': [20, 100],
-        'clf__estimator__min_samples_split': [2, 10]
+        'clf__estimator__n_estimators': [10, 25],
+        'clf__estimator__min_samples_split': [2, 5]
 
     }
 
-    cv = GridSearchCV(pipeline, param_grid = parameters, cv=3, verbose=5)
+    cv = GridSearchCV(pipeline, param_grid = parameters, cv=3, verbose=10)
+    #cv = GridSearchCV(pipeline, param_grid = parameters, cv=3, verbose=10)
     return cv
 
 def evaluate_model(model, X_test, Y_test, category_names):
@@ -128,7 +131,8 @@ def evaluate_model(model, X_test, Y_test, category_names):
     Y_pred = model.predict(X_test)
     
     # print scores
-    print(classification_report(Y_test.iloc[:,1:].values, np.array([x[1:] for x in Y_pred]), target_names=category_names))
+    print(classification_report(Y_test.values, Y_pred, target_names=category_names))
+    # print(classification_report(Y_test.iloc[:,1:].values, np.array([x[1:] for x in Y_pred]), target_names=category_names))
 
 
 def save_model(model, model_filepath):
@@ -142,8 +146,9 @@ def save_model(model, model_filepath):
          已保存模型的pickle文件
     '''
 
-    # joblib.dump(model, model_filepath)
-    pickle.dump(model, open(model_filepath, 'wb'))
+    joblib.dump(model, model_filepath)
+    # pickle.dump(model, open(model_filepath, 'wb'))
+    
 
 
 def main():
